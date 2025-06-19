@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsInt, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsString, IsInt, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AddItemDto {
@@ -11,4 +11,9 @@ export class AddItemDto {
   @Max(5)
   @Type(() => Number)
   quantity: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Type(() => Number)
+  price: number;
 } 

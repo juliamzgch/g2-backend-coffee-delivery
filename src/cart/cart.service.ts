@@ -2,34 +2,27 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { threadId } from 'worker_threads';
 
 @Injectable()
 export class CartService {
   constructor(private prisma: PrismaService) {}
 
-  async getOrCreateCart(userId?: string) {
-    // Se userId for fornecido, buscar carrinho existente ou criar novo
-    if (userId) {
-      const existingCart = await this.prisma.cart.findFirst({
-        where: { userId },
-        include: { items: true },
-      });
-
-      if (existingCart) {
-        return existingCart;
-      }
-    }
-
-    // Criar novo carrinho
-    return this.prisma.cart.create({
-      data: {
-        userId: userId || null,
+  async getCart(cartId: string) {
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: cartId },
+      include: {
+        items: {
+          include: {
+            coffee: true, // Inclui os detalhes do café associado ao item
+          },
+        },
       },
     });
-  }
-
-  async getCart(cartId: string) {
-    // implementar sua lógica aqui
+    if (!cart) {
+      throw new NotFoundException(`Cart with ID ${cartId} not found`);
+    }
+    return cart;
   }
 
   async addItem(cartId: string, addItemDto: AddItemDto) {
@@ -44,12 +37,22 @@ export class CartService {
       throw new NotFoundException(`Coffee with ID ${coffeeId} not found`);
     }
 
-    // continue com sua lógica aqui!
+    return this.prisma.cartItem.create({
+      data: {
+        cartId,
+        coffeeId,
+        quantity,
+        unitPrice: coffee.price,
+      },
+      include: {
+        coffee: true, // Inclui os detalhes do café associado ao item
+      },
+    });
   }
 
   async updateItem(cartId: string, itemId: string, updateItemDto: UpdateItemDto) {
     // Verificar se o item existe no carrinho
-    const item = await this.prisma.cartItem.findFirst({
+    const item = await this.prisma.cartItem.findUnique({
       where: {
         id: itemId,
         cartId,
@@ -60,11 +63,43 @@ export class CartService {
       throw new NotFoundException(`Item with ID ${itemId} not found in cart ${cartId}`);
     }
 
-    // continue com sua lógica ou refaça
+    if (updateItemDto.quantity > 5) {
+      throw new BadRequestException("Quantity cannot be greater than 5") 
+    }
+
+    return this.prisma.cartItem.update({
+      where: { id: itemId },
+      data: {
+        quantity: updateItemDto.quantity, // Atualiza a quantidade do item
+      },
+      include: {
+        coffee: true, // Inclui os detalhes do café associado ao item
+      }
+    });
   }
 
   async removeItem(cartId: string, itemId: string) {
+    const item = await this.prisma.cartItem.findUnique({
+      where: {
+        id: itemId,
+        cartId,
+      },
+    });
 
-    return { success: true };
+    if (!item) {
+      throw new NotFoundException(`Item with ID ${itemId} not found in cart ${cartId}`);
+    }
+    try {
+      await this.prisma.cartItem.delete({
+        where: { id: itemId },
+        include: {
+          coffee: true, // Inclui os detalhes do café associado ao item
+        },
+      });
+    }
+    catch (error) {
+      throw new BadRequestException(`Error removing item with ID ${itemId} from cart ${cartId}`);
+    }
+    
   }
 } 

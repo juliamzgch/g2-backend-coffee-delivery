@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
 }
 
 model Coffee {
@@ -16,8 +17,8 @@ model Coffee {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   
-  // Relacionamentos incompleto
-  // tags
+  tags        CoffeeTag[]
+  cartItems   CartItem[]
 }
 
 model Tag {
@@ -31,18 +32,24 @@ model Tag {
 }
 
 model CoffeeTag {
-  coffeeId  String
+  coffeeId  String 
+  coffee    Coffee    @relation(fields: [coffeeId], references: [id])
   tagId     String
-  // Relacionamentos aqui
+  tag       Tag       @relation(fields: [tagId], references: [id])
+
+  @@id([coffeeId, tagId])
+
 }
 
 model Cart {
-  id        String     @id @default(uuid())
-  userId    String?    // Opcional para usuários não autenticados
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                String          @id @default(uuid())
+  userId            String?
+  status            Status          @default(aguardandoPagamento)
+  statusPayment     StatusPayment   @default(pendente)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  dataTimeCompleted DateTime
   
-  // Relacionamentos incompleto
   items     CartItem[]
 }
 
@@ -54,4 +61,24 @@ model CartItem {
   updatedAt  DateTime @updatedAt
   
   // Relacionamentos aqui
+  coffeeId  String  
+  coffee     Coffee   @relation(fields: [coffeeId], references: [id])
+  
+  cartId   String    @unique
+  cart     Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, coffeeId])
+}
+
+enum Status{
+  abandonado
+  aguardandoPagamento
+  finalizado
+}
+
+enum StatusPayment{
+  aprovado
+  analise
+  pendente
+  cancelado
 }
