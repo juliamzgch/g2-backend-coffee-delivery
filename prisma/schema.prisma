@@ -33,7 +33,7 @@ model Tag {
 
 model CoffeeTag {
   coffeeId  String 
-  coffee    Coffee    @relation(fields: [coffeeId], references: [id])
+  coffee    Coffee    @relation(fields: [coffeeId], references: [id], onDelete: Cascade)
   tagId     String
   tag       Tag       @relation(fields: [tagId], references: [id])
 
